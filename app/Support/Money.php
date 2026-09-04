@@ -46,7 +46,18 @@ final class Money
 
         // A scale of 0 truncates, but the pattern above has already rejected
         // any third decimal that truncation could silently discard.
-        return (int) bcmul($value, self::FACTOR, 0);
+        $minor = bcmul($value, self::FACTOR, 0);
+
+        // Casting an out-of-range numeric string saturates at PHP_INT_MAX
+        // rather than failing, which would turn an absurd amount into a
+        // merely enormous one. Refuse instead of quietly changing it.
+        if (bccomp($minor, (string) PHP_INT_MAX) > 0 || bccomp($minor, (string) PHP_INT_MIN) < 0) {
+            throw new InvalidArgumentException(
+                sprintf('"%s" is outside the range that can be represented exactly.', $value),
+            );
+        }
+
+        return (int) $minor;
     }
 
     public static function toDecimalString(int $minor): string

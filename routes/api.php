@@ -6,4 +6,4 @@ use Illuminate\Support\Facades\Route;
 
 Route::apiResource('clients', ClientController::class)->only(['index', 'store', 'show']);
 
-Route::apiResource('clients.transactions', TransactionController::class)->only(['index']);
+Route::apiResource('clients.transactions', TransactionController::class)->only(['index', 'store']);

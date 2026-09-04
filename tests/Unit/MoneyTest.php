@@ -27,6 +27,8 @@ class MoneyTest extends TestCase
             'an amount the naive float cast corrupts' => ['0.29', 29, '0.29'],
             'another the float cast corrupts' => ['1.13', 113, '1.13'],
             'beyond the exact range of a float' => ['92233720368547.75', 9223372036854775, '92233720368547.75'],
+            'the largest representable amount' => ['92233720368547758.07', 9223372036854775807, '92233720368547758.07'],
+            'the smallest representable amount' => ['-92233720368547758.08', PHP_INT_MIN, '-92233720368547758.08'],
             'negative' => ['-120.50', -12050, '-120.50'],
         ];
     }
@@ -46,6 +48,9 @@ class MoneyTest extends TestCase
             'leading whitespace' => [' 10.00'],
             'scientific notation' => ['1e3'],
             'a trailing decimal point' => ['10.'],
+            'one cent above the representable maximum' => ['92233720368547758.08'],
+            'one cent below the representable minimum' => ['-92233720368547758.09'],
+            'absurdly large' => ['999999999999999999999999.99'],
         ];
     }
 
