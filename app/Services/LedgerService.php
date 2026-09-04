@@ -8,6 +8,7 @@ use App\Exceptions\InsufficientFundsException;
 use App\Exceptions\InsufficientHoldingsException;
 use App\Models\Client;
 use App\Models\Transaction;
+use App\Support\AccountState;
 use App\Support\Movement;
 use Closure;
 use Illuminate\Database\Query\Builder;
@@ -44,6 +45,18 @@ class LedgerService
 
             return $client->transactions()->create($movement->attributes());
         });
+    }
+
+    /**
+     * The client's cash and holdings as they stand right now.
+     */
+    public function state(Client $client): AccountState
+    {
+        return new AccountState(
+            $client,
+            $this->cashBalanceMinor($client),
+            $this->holdings($client),
+        );
     }
 
     /**
