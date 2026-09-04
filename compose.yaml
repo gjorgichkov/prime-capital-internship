@@ -21,7 +21,8 @@ services:
         networks:
             - sail
         depends_on:
-            - mysql
+            mysql:
+                condition: service_healthy
     mysql:
         image: 'mysql:8.4'
         ports:
@@ -45,8 +46,12 @@ services:
                 - mysqladmin
                 - ping
                 - '-p${DB_PASSWORD}'
-            retries: 3
+            interval: 5s
             timeout: 5s
+            retries: 10
+            # A first boot initialises the data directory and creates the
+            # testing database, which takes considerably longer than a restart.
+            start_period: 60s
 networks:
     sail:
         driver: bridge
