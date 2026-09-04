@@ -81,14 +81,6 @@ class LedgerService
     }
 
     /**
-     * The number of units of one instrument the client holds.
-     */
-    public function heldUnits(Client $client, string $instrument): int
-    {
-        return (int) $this->unitsQuery($client, $instrument)->value('quantity');
-    }
-
-    /**
      * Checks the movement against the current state of the account.
      *
      * Which rule applies is taken from the movement's direction rather than
