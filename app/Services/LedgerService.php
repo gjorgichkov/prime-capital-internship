@@ -3,7 +3,12 @@
 namespace App\Services;
 
 use App\Enums\TransactionType;
+use App\Exceptions\AccountRuleViolation;
+use App\Exceptions\InsufficientFundsException;
+use App\Exceptions\InsufficientHoldingsException;
 use App\Models\Client;
+use App\Models\Transaction;
+use App\Support\Movement;
 use Closure;
 use Illuminate\Database\Query\Builder;
 use Illuminate\Support\Collection;
@@ -18,6 +23,29 @@ use Illuminate\Support\Facades\DB;
  */
 class LedgerService
 {
+    /**
+     * Records a movement, or rejects it for breaking an account rule.
+     *
+     * Both rules are read-then-write decisions, so they are unsafe without a
+     * lock: two simultaneous requests could each read a balance of 500 and
+     * each approve a 400 purchase, leaving -300. The client row is locked for
+     * the duration to serialise every write to this one account.
+     *
+     * @throws AccountRuleViolation
+     */
+    public function record(Client $client, Movement $movement): Transaction
+    {
+        return DB::transaction(function () use ($client, $movement): Transaction {
+            // InnoDB locks the row rather than the table, so movements for
+            // other clients are never held up by this.
+            Client::whereKey($client->getKey())->lockForUpdate()->firstOrFail();
+
+            $this->guardAccountRules($client, $movement);
+
+            return $client->transactions()->create($movement->attributes());
+        });
+    }
+
     /**
      * The client's cash balance, in minor units.
      */
@@ -45,6 +73,40 @@ class LedgerService
     public function heldUnits(Client $client, string $instrument): int
     {
         return (int) $this->unitsQuery($client, $instrument)->value('quantity');
+    }
+
+    /**
+     * Checks the movement against the current state of the account.
+     *
+     * Which rule applies is taken from the movement's direction rather than
+     * its name, so a withdrawal and a purchase are both checked against the
+     * balance without either being named here.
+     *
+     * @throws AccountRuleViolation
+     */
+    protected function guardAccountRules(Client $client, Movement $movement): void
+    {
+        if ($movement->type->cashDirection() < 0) {
+            $balanceMinor = (int) $this->cashBalanceQuery($client)->lockForUpdate()->value('balance');
+
+            if ($movement->amountMinor > $balanceMinor) {
+                throw $movement->type->isTrade()
+                    ? InsufficientFundsException::forPurchase($movement->amountMinor, $balanceMinor)
+                    : InsufficientFundsException::forWithdrawal($movement->amountMinor, $balanceMinor);
+            }
+        }
+
+        if ($movement->type->unitDirection() < 0) {
+            $heldUnits = (int) $this->unitsQuery($client, (string) $movement->instrument)->lockForUpdate()->value('quantity');
+
+            if ((int) $movement->quantity > $heldUnits) {
+                throw InsufficientHoldingsException::forSale(
+                    (string) $movement->instrument,
+                    (int) $movement->quantity,
+                    $heldUnits,
+                );
+            }
+        }
     }
 
     protected function cashBalanceQuery(Client $client): Builder
