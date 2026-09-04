@@ -50,4 +50,7 @@ echo "==> Running migrations"
 ./vendor/bin/sail artisan migrate
 
 echo
-echo "Done. The API is available at http://localhost:8000"
+# Read the port back from .env rather than assuming the default, so the message
+# stays correct when APP_PORT has been changed to avoid a clash.
+app_port="$(sed -n 's/^APP_PORT=//p' .env | tail -n 1)"
+echo "Done. The API is available at http://localhost:${app_port:-80}"
