@@ -46,8 +46,10 @@ if ! grep -q '^APP_KEY=base64:' .env; then
     ./vendor/bin/sail artisan key:generate
 fi
 
-echo "==> Running migrations"
-./vendor/bin/sail artisan migrate
+echo "==> Running migrations and seeding the example data"
+# The seeder leaves an already-populated database untouched, so this stays
+# safe on a rerun.
+./vendor/bin/sail artisan migrate --seed
 
 echo
 # Read the port back from .env rather than assuming the default, so the message

@@ -22,6 +22,13 @@ class DatabaseSeeder extends Seeder
      */
     public function run(LedgerService $ledger): void
     {
+        // Seeding runs as part of setting up a clone, and that script is meant
+        // to be rerunnable, so an already-populated database is left alone
+        // rather than having a second copy of every movement appended to it.
+        if (Client::query()->exists()) {
+            return;
+        }
+
         // The brief's own worked example, kept verbatim so its numbers can be
         // compared against a live response. Ends at 860.00 cash and 2 AAPL.
         $ana = Client::create(['name' => 'Ana']);
